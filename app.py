@@ -61,20 +61,23 @@ def answer_as_chatbot(message):
 
 @app.route('/kbanswer', methods=['POST'])
 def kbanswer():
-    # TODO: Write your code here
+    message = request.json['message']
     
-    # call answer_from_knowledebase(message)
-        
+    # Get the answer to the question
+    response_message = answer_from_knowledgebase(message)
+    
     # Return the response as JSON
-    return 
+    return jsonify({'message': response_message}), 200
 
 @app.route('/search', methods=['POST'])
 def search():    
+    message = request.json['message']
+    
     # Search the knowledgebase and generate a response
-    # (call search_knowledgebase())
+    response_message = search_knowledgebase(message)
     
     # Return the response as JSON
-    return
+    return jsonify({'message': response_message}), 200
 
 @app.route('/answer', methods=['POST'])
 def answer():
