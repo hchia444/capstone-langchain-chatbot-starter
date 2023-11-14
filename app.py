@@ -2,21 +2,62 @@ from flask import Flask, render_template
 from flask import request, jsonify, abort
 
 from langchain.llms import Cohere
+from langchain import PromptTemplate, LLMChain
+from langchain.chains import SequentialChain
+from langchain.prompts.chat import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+)
+from langchain.chains import RetrievalQA
+from langchain.embeddings import CohereEmbeddings
+from langchain.vectorstores import Chroma
+
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
+def load_db():
+    try:
+        embeddings = CohereEmbeddings(cohere_api_key=os.environ["COHERE_API_KEY"])
+        vectordb = Chroma(persist_directory='db', embedding_function=embeddings)
+        qa = RetrievalQA.from_chain_type(
+            llm=Cohere(),
+            chain_type="refine",
+            retriever=vectordb.as_retriever(),
+            return_source_documents=True
+        )
+        return qa
+    except Exception as e:
+        print("Error:", e)
+
+qa = load_db()
+
 def answer_from_knowledgebase(message):
-    # TODO: Write your code here
-    return ""
+    res = qa({"query": message})
+    return res['result']
 
 def search_knowledgebase(message):
-    # TODO: Write your code here
+    res = qa({"query": message})
     sources = ""
+    for count, source in enumerate(res['source_documents'],1):
+        sources += "Source " + str(count) + "\n"
+        sources += source.page_content + "\n"
     return sources
 
 def answer_as_chatbot(message):
-    # TODO: Write your code here
-    return ""
+    template = """Question: {question}
+
+    Answer as if you are an expert Python developer"""
+
+    prompt = PromptTemplate(template=template, input_variables=["question"])
+    llm = Cohere(cohere_api_key=os.environ["COHERE_API_KEY"])
+    llm_chain = LLMChain(prompt=prompt, llm=llm)
+    res = llm_chain.run(message)
+    return res
 
 @app.route('/kbanswer', methods=['POST'])
 def kbanswer():
